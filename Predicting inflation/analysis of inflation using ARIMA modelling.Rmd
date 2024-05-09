@@ -1,0 +1,113 @@
+---
+title: "Inflation rate analysis"
+author: "Gordon Ma"
+date: "2021/12/01"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: 3
+graphics: yes
+indent: true
+geometry: left=1.5cm,right=1.5cm,top=1cm,bottom=1.5cm
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Section 1 - Introduction
+
+The goal of this project is to build a statistical model to forecast the inflation rate in Canada. We obtain the macroeconomics data from the website of [International Monetary Policy (IMF)](<https://data.imf.org/?sk=4c514d48-b6ba-49ed-8ab9-52b0c1a0179b&sid=1409151240976>). By analyzing the historical economic and financial data from the website of International Monetary Policy (IMF), we aim to perform statistical inference as well as create a predictive model.
+
+Economic indicators for measuring the inflation rate included the Consumer price index (CPI), the producer price index(PPI) and the GDP deflator. The most commonly used one is CPI, which is defined as the price of one fixed basket of consumer goods and services in one period. CPI includes the cost of food, beverages, housing, education, transportation and medical care. The unit of CPI is measured in percentage, which is compared to the based year. For example, if the base year is $2010$, then the CPI of $125$ means that the price increased by $125$ percent compared to the year $2010$.
+
+We first load the required packages and the economical data:
+
+```{r}
+library(astsa)
+library(readxl)
+```
+
+library(readxl)
+
+```{r}
+GDP_and_Components <- read_excel("GDP_and_Components.xlsx")
+tail(GDP_and_Components)
+```
+
+There are many statistical models to predict includesinflation rates in the existing literature. For example, the Phillips curve shows the inverse trade-off between rates of inflation and rates of unemployment \cite{bib1}. One other method involves regressions based on implicit expectations derived from asset prices, such as nominal Treasury debt \cite{bib2, bib3}. In this project, we adopt the method that prediction based only on past inflation rate. This leads to time series models such as auto-regressive integrated moving average (ARIMA) models.
+
+We also examine the correlation and causal relation of inflation and its predictors such as government spending. Economists believe that the causes of inflation included increased government spending, demand/supply shocks and unemployment rate. We would like to investigate how strongly these variables are correlated. By examining the correlation of time lag variable, it is possible to find causal relations. We also analyze the US data and examine the cross-correlation with the Canadian data.
+
+## Section 2 - Analysis of the time series data
+
+The figure belows shows the CPI for the last ten years, where the unit is in the month.
+
+```{r}
+plot(CPI, main = "Inflation rate of Canada  ", xlab = "Year(based year = 2010)", ylab = "CPI")
+```
+
+The figure shows an upward trend, and the rate of increase is the fastest over the years $2020$ and $2021$ because of the pandemic. We apply the difference operator to the data and graph the new data in figure. We can see that the new time series is weakly stationary.
+
+```{r}
+stat_CPI = diff(CPI)
+plot(stat_CPI, main = "First difference", xlab = "Year", ylab = "CPI")
+```
+
+## Section 3 - Diagotistic of the model
+
+The plots of ACF and PACF are shown in the figure below:
+
+```{r}
+acf2(stat_CPI, 50, main = "")
+```
+
+The ACF plot shows the presence of seasonal correlation where the season is equal to $12$ months. The PACF shows the seasonal correlation cuts off after 2 seasons. This suggests we fit the model with parameters $P = 2, Q = 0$ and $s = 12$. By observing the figure at the smaller lag, both the ACF and PACF are tailing off. So we try to fit the non-seasonal component with $p = 1$ and $q = 1$. The model we get for the original time series $x_t$ is
+
+\begin{equation}
+    \label{SARIMA model}
+    ( 1 - \Phi_1 B^{12} - \Phi_2  B^{24} )( 1 - \phi_1 B) \triangledown x_t = \delta + ( 1 + \theta_1 B) w_t
+\end{equation} Where $\Phi, \phi, \theta, \delta$ are the coefficients of the model.
+
+Compare to the other coefficients in the model, the standard error for $\theta_1, \phi_1$ are quiet large. Fortunately, the P values for these coefficients are large. By eliminating these two we get a simplified model. We fit the model \begin{equation}
+    \label{SARIMA2}
+    ( 1 - \Phi_1 B^{12} - \Phi_2  B^{24} ) \triangledown x_t = \delta + w_t
+\end{equation}
+
+```{r}
+fitted_model = sarima(CPI, 0, 1, 0, 2, 0, 0, 12)
+sarima.for(CPI, 12, 0, 1, 0, 2, 0, 0 , 12 )
+```
+
+```{=tex}
+\pagebreak
+\begin{thebibliography}{}
+    \bibitem{bib1}
+    Atkeson Andrew, and Lee E.Ohanian
+    \textit{Are Phillip Curves Useful For Forecasting Inflation?}
+    Federal Reserve Bank of Minneapolis Quarterly review
+    25(1) : 2 - 11
+    Available at  http://www.minneapolisfed.org/research/QR/QR2511.pdf 
+    
+    \bibitem{bib2}
+    Mishkin, Frederic S.
+    \textit{What Does the Term Structure Tell us about Future inflation?}
+    Journal of Monetary Economics 
+    25(1) : 77 - 95
+    
+    \bibitem{bib3}
+    Mishkin, Frederic S.
+    \textit{The Information in the Longer-Maturity Term Structure about future inflation.}
+    Quarterly Journal of Economics 
+    105(3) : 815 - 828
+
+\end{thebibliography}
+```
