@@ -1,0 +1,28 @@
+{
+    "id": "98CF9DE5",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1711749150026.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "id": "c711a29fc45d44ff87d8c5a67d699626",
+        "name": "pr_LDA",
+        "title": "pr_LDA",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 19140577592344644,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1711749150026,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,7 @@
+"0","set.seed(421)"
+"0","#Train on the entire training set, using the best parameter found during cross validation. "
+"0","logit_model <- glm(`Fraud Indicator (Yes/No)` ~ `Risk Assessment`+ `Transaction Value` + `Cross-border Transaction (Yes/No)` + `Card Present Status` + `Chip Usage`, data = BOLT_subset, family = ""binomial"")"
+"0","#Return the Prediction on the test samples - the probability of being fraud/non-fraud"
+"0","logit_predict <- predict(logit_model, newdata = BOLT_test, type = ""response"")"
+"2","Error: object 'BOLT_test' not found
+"

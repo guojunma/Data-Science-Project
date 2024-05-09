@@ -1,0 +1,376 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+#Data exploration
+Load the required libraries for data analysis. 
+```{r, message = FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(CMA) #For fitting and comparing classification model
+library(lubridate) 
+```
+
+```{r}
+#Import the data
+BOLT_Data_Set <- read_excel("BOLT Data Set.xlsx")
+dim(BOLT_Data_Set)
+head(BOLT_Data_Set)
+```
+```{r}
+#Convert the date type from characters to factors
+BOLT <- BOLT_Data_Set %>% 
+  filter(!(`Cross-border Transaction (Yes/No)` == 0)) %>% 
+  mutate_if(is.character, as.factor)
+```
+
+```{r}
+#loos at the summary of the dataset. 
+summary(BOLT)
+```
+
+## Business analytics
+### Which location(country) has the highest number of transaction and total transaction value? 
+```{r}
+spend_location <- BOLT %>% 
+  group_by(`Merchant Location`) %>%
+  summarise(number_of_transaction = n(), total_transaction_value = sum(`Transaction Value`)) %>% 
+  arrange(desc(total_transaction_value)) 
+top10 <- head(spend_location, 10)
+Other <- spend_location[11: nrow(spend_location), ] %>% 
+         summarise(number_of_transaction = sum(number_of_transaction), total_transaction_value = sum(total_transaction_value)) %>% 
+        mutate(`Merchant Location` = "other")
+(spend_location <- rbind(top10, Other))
+```
+
+```{r}
+
+ggplot(spend_location, aes(x = "", y = `total_transaction_value`, fill = `Merchant Location`)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  labs(title = "Total Transaction value ", fill = "Countries") 
+```
+
+Business recommendation: increase marketing budget in the locations with low numbers. 
+
+###Which type of merchants are using the most of the service in the US? 
+```{r}
+BOLT %>% 
+  filter(`Merchant Location` == "USA") %>% 
+  group_by(`Merchant Category Code (MCC)`) %>%
+  summarise(number_of_transaction = n(), total_transaction_value = sum(`Transaction Value`)) %>% 
+  arrange(desc(total_transaction_value)) 
+```
+
+### When do people spend the most during the year? 
+```{r}
+timeseries <- BOLT %>% 
+  group_by(`Transaction Date`) %>%
+  summarise(total_transactions = sum(`Transaction Value`))
+
+ggplot(timeseries, aes(x = `Transaction Date`, y = total_transactions)) +
+  geom_point() +  # Add scatter plot points
+  geom_smooth(method = "loess", se = TRUE, color = "red") +  # Add a trend line
+  labs(title = "Total Transactions Over Time", y = "Total Transactions in Dollars")
+```
+
+The red line is the trend line fitted using the locally weighted scatterplot smoothing (loess) method. The shape area is the confidence interval. It doesn't seem there is differnce between months and quarters. 
+Let us also visualize the spending by day. 
+
+```{r}
+timeseries2 <- BOLT %>% 
+  group_by(day(BOLT$`Transaction Date`)) %>%
+  summarise(total_transactions = sum(`Transaction Value`))
+  
+
+barplot(timeseries2$total_transactions ~ timeseries2$`day(BOLT$\`Transaction Date\`)`, 
+        xlab = "Day of the month", ylab = "Total transaction", main = "Daily total transaction", col = c("red","blue", "green"))
+```
+
+Here, we observed the most total transaction in the 1st, 15th day and 27th day of the month. How do we leverage this to come up with a business plan? Maybe increase the fee to use the Mastercard service on those days. 
+
+## Variables associated with increased risk of frauds
+### How much total financial incurred from the fraud transaction?
+```{r}
+BOLT %>% 
+  filter(`Fraud Indicator (Yes/No)` == "Yes") %>%
+  summarise(total_value = sum(`Transaction Value`))
+```
+
+### Which location have the highest number of transactions being fraud? 
+```{r}
+BOLT %>% 
+  group_by(`Merchant Location`) %>%
+  summarise(num_of_transaction = n(), num_of_fraud = sum(`Fraud Indicator (Yes/No)` == "Yes")) %>% 
+  mutate(proportion_of_fraud = num_of_fraud / num_of_transaction) %>%
+  arrange(desc(proportion_of_fraud), desc(num_of_fraud))
+```
+Can put these merchant location as high risk factor. However, the sample size is small for these locations so it is not really conclusive. 
+ 
+### Which payment methods have the most fraud? 
+```{r}
+BOLT %>% 
+  group_by(`Payment Method`) %>%
+  summarise(num_of_fraud = sum(`Fraud Indicator (Yes/No)` == "Yes")) %>% 
+  arrange(desc(num_of_fraud)) 
+```
+We see that most fraud are through online and subsription payment. 
+
+### Does cross-border transaction reprensents a higher risk of fraud transaction? 
+```{r}
+BOLT %>% 
+  group_by(`Cross-border Transaction (Yes/No)`) %>%
+  summarise(number_of_transaction = n(), fraud = sum(`Fraud Indicator (Yes/No)` == "Yes"), Non_fraud = sum(`Fraud Indicator (Yes/No)` == "No"))
+```
+Yes, the ratio of fraud is higher for the Cross-border Transaction: 
+$$ \frac{91}{91 + 14754} \approx 0.00613 > 0.002050364 \approx \frac{174}{174 + 84863}$$
+
+One can also use chi-square statistics to test if this differnce in ratio is signifcant.  
+```{r}
+contingency_table <- as.table(rbind(c(91, 174), c(14754, 84863)))
+dimnames(contingency_table) <- list(Fraud = c("Yes", "No"), Crossborder = c("Yes","No") )
+print(contingency_table)
+chisq.test(contingency_table)
+```
+
+The p-value rejects the null hypothesis that these two variables are independent. Based on this, we recommend the business to increase surveillance for cross-border transaction. 
+
+### Does chip usage and physical card usage during the payment decreases the risk of fraud? 
+```{r, message = FALSE}
+BOLT %>% 
+  group_by(`Card Present Status`, `Chip Usage`) %>%
+  summarise(fraud = sum(`Fraud Indicator (Yes/No)` == "Yes"), Non_fraud = sum(`Fraud Indicator (Yes/No)` == "No"), ratio_of_fraud = fraud / (fraud + Non_fraud) )
+```
+
+We see that these variables are correlated in some way - most non-physical card user also don't have chip usage, and vice versa.  
+The ratio of fraud for the physical card and Chip usage is $37 / 45681 \approx 0.0008$, which is significantly lower than the non-user $211/50093 \approx 0.0042$. Also, it is not enough to only use physical card but not the chip - by looking at the group of non-chip usage, the use of physical card does not change the ratio of fraud by much (0.00421 vs. 0.00415). 
+
+```{r}
+contingency_table <- as.table(rbind(c(37, 211), c(45644, 49882)))
+dimnames(contingency_table) <- list(Fraud = c("Yes", "No"), ChipUsage = c("Yes","No") )
+mosaicplot(contingency_table, main = "Mosaic plot of the table")
+chisq.test(contingency_table)
+```
+The chi-squared test indicates that chip usage and physical card significantly decrease the risk of fraud. Based on this, we recommend the business to increase the use of physical card and chip usage to minimize lost from fraud. 
+
+### Does the risk assessment accurately predict the risk of fraud? Does the fraud transaction has higher or lower average transaction value? 
+```{r}
+BOLT %>% 
+  group_by(`Fraud Indicator (Yes/No)`) %>% 
+  summarise(`average risk assessment` = mean(`Risk Assessment`, na.rm = TRUE), 
+            `average transaction` = mean(`Transaction Value`, na.rm = TRUE))
+```
+
+```{r}
+par(mfrow = c(1, 2))
+boxplot(`Risk Assessment` ~ `Fraud Indicator (Yes/No)`, data = BOLT, main = "Box plot 1", col = c("blue", "green") )
+boxplot(`Transaction Value` ~ `Fraud Indicator (Yes/No)`, data = BOLT, main = "Box plot 2", col = c("blue", "green"))
+```
+By visual inspection of box plot 1,  we see that average risk assessment is higher for the fraud group. However, we also see many outlier for the non-fraud group - that is, many non-fraud transactions are assigned high risk assessment. If we use only risk assessment to predict fraud, this could result in many false-positive. 
+
+The box plot 2 tells a similar story - although the average transaction is higher for the fraud group, we see that many non-fraud has very high transaction value. Also, the transaction value is below $5000$ for all the fraud transaction.  
+
+We can use t-test to test is the mean differences are really significant.
+```{r}
+t.test(`Risk Assessment` ~ `Fraud Indicator (Yes/No)`, data = BOLT)
+t.test(`Transaction Value` ~ `Fraud Indicator (Yes/No)`, data = BOLT)
+```
+
+The mean difference is significant for the risk assessment, but not significant for the transaction value ( p-value = 0.06897 > 0.05). 
+
+```{r, warning=FALSE}
+#Visualize the relationship between transaction value and risk assessment by scatterplot 
+ggplot(BOLT, aes(x = `Transaction Value`, y = `Risk Assessment`, color = `Fraud Indicator (Yes/No)`)) +
+  geom_point() +
+  labs(title = "Scatter Plot with Color by Yes/No", x = "Transaction Value", y = "Risk Assessment") +
+  scale_color_manual(values = c("Yes" = "red", "No" = "blue"))
+```
+
+
+Recall the goal of this project is build a classification model which does not that does not have many false positives. How do we represent the data so we can clearly separate out the blue dots from the red dots? 
+
+
+
+```{r}
+#Logistic regression 
+LOGIT <- glm(`Fraud Indicator (Yes/No)` ~ `Risk Assessment`  + `Chip Usage` + `Cross-border Transaction (Yes/No)` , data = BOLT, family = "binomial")
+```
+
+```{r}
+summary(LOGIT)
+```
+We find that increase  one unit of risk assessment on average correspond to an increase of the log odds of being fraud by $0.00113 (\pm 0.0000517)$.The chip usage decrease the log odds by $1.322 (\pm 0.299)$. The cross-border transaction increases the log odds by $0.346 (\pm 0.142)$.  And the effect of physical card present and chip usage is the largest, which decreases the 
+
+
+
+
+#Classification models
+To build our prediction model, we include the variables that are associated with fraud indicator: Risk assessment, payment method, Card Present Status, chip usage and cross-border transaction. We split the 80% of the data for training and the rest for testing
+
+```{r}
+set.seed(123)
+split <- sample(c(1:nrow(BOLT)), size = 0.8 * nrow(BOLT))
+
+BOLT_train <- BOLT[split, ] 
+
+
+BOLT_test <- BOLT[-split, ]
+
+
+#Filter out the missing value 
+BOLT_train <- BOLT_train[complete.cases(BOLT_train), ]
+BOLT_test <- BOLT_test[complete.cases(BOLT_test), ]
+
+#Build a design matrix 
+design_train <- model.matrix(~ `Risk Assessment`+ `Transaction Value` + `Payment Method` + `Card Present Status` + `Chip Usage` , BOLT_train)
+design_test <- model.matrix(~ `Risk Assessment`+ `Transaction Value` + `Payment Method` + `Card Present Status` + `Chip Usage` , BOLT_test)
+
+#Check if the splits are balanced
+table(BOLT_train$`Fraud Indicator (Yes/No)`)
+table(BOLT_test$`Fraud Indicator (Yes/No)`)
+``` 
+
+
+We will use cross-validation to evaluate the model's generalibility performance on the new samples. Details of cross-validation is in the chapter $5$ of textbook *An introduction to statistical learning with R*. We will compare the model's performance use the following metrics:
+  
+-   Misclassification: The proportion of data that are labelled incorrectly.
+
+-   Sensitivity: the proportion of actual positives which are correctly identified.
+
+-   Specificity: the proportion of actual negatives which are correctly identified.
+
+For this specific problem, we are interested in minimize the false positive rate, which is (1 - specificity): The proportion of non-fraud that are incorrectly identified as fraud. 
+
+```{r}
+library(CMA)
+#Partition the training set to 10 in order perform cross-validation. By setting the argument strat = True, we ensure each split contains the same number of fraud and non-fraud samples.
+set.seed(123)
+splits <- CMA::GenerateLearningsets(y = BOLT_train$`Fraud Indicator (Yes/No)`, method="CV", fold= 5, strat= TRUE)
+```
+
+
+In this project, I fit and compare the following classification methods:
+  
+-   K-Nearest-Neighborhood(KNN).
+
+-   Linear Discrimination Analysis(LDA).
+
+-   Elastic net.
+
+-   Random Forest.
+
+-   Tree-based Gradient Boosting.
+
+-   Feed-Forward Neural Networks.
+
+-   Probabilistic Neural Networks.
+
+
+```{r, results='hide'}
+response_train <- BOLT_train$`Fraud Indicator (Yes/No)`
+
+#K Nearest Neighborhood
+tune_KNN <- tune(X = design_train, y = response_train, learningsets = splits, classifier = knnCMA)
+pr_KNN <- classification(X = design_train, y = response_train, tuneres = tune_KNN, learningsets = splits, classifier = knnCMA)
+
+#Linear discriminant analysis 
+pr_LDA <- classification(X = design_train[, -1], y = response_train, learningsets = splits, classifier = ldaCMA)
+
+
+# Elastic Net
+tune_EL <- tune(X = design_train, y = response_train, learningsets = splits, classifier = ElasticNetCMA)
+pr_EN <- classification(X = design_train, y = response_train, tuneres = tune_EL, learningsets = splits, 
+                        classifier = ElasticNetCMA)
+``` 
+
+```{r, results='hide'}
+#Random forest
+tune_RF <- tune(X = design_train, y = response_train, learningsets = splits, classifier = rfCMA)
+pr_RF <- classification(X = design_train, y = response_train, tuneres = tune_RF, learningsets = splits, 
+                        classifier = rfCMA)
+```
+
+
+```{r}
+#Tree-based Gradient Boosting
+tune_TGB <- tune(X = design_train[,-1], y = response_train, learningsets = splits, classifier = gbmCMA)
+pr_TBB <- classification(X = design_train[,-1], y = response_train, tuneres = tune_TGB, learningsets = splits, classifier = gbmCMA)
+```
+
+
+```{r}
+#Feed-Forward Neural Networks
+tune_NN <- tune(X = design_train, y = response_train, learningsets = splits, classifier = nnetCMA)
+pr_FNN <- classification(X = design_train, y = response_train, tuneres = tune_NN, learningsets = splits, classifier = nnetCMA)
+``` 
+
+
+```{r}
+#SVM
+pr_SVM <- classification(X = design_train[, -1], y = response_train, learningsets = splits, classifier = svmCMA, kernel = "polynomial")
+```
+
+Now let us compare the performance of these models using the metrics defined above. 
+```{r compare, message=FALSE}
+pr <- list(pr_KNN, pr_TBB, pr_RF, pr_EN, pr_FNN, pr_LDA, pr_SVM)
+comparison <- compare(pr, plot = TRUE, measure = c("misclassification", "sensitivity", "specificity"))
+print(comparison)
+```
+
+```{r, warning=FALSE}
+pr <- list( pr_TBB, pr_RF, pr_EN, pr_FNN, pr_LDA, pr_SVM)
+comparison <- compare(pr, plot = TRUE, measure = "auc")
+print(comparison)
+``` 
+
+It seem like ElasticNet and Linear Discrimant Analysis have a similar AUC. However, Elastic net has an advantage of being easier to interpret the parameter(same interpretation as logistic regression)
+```{r}
+roc(pr_EN[[1]], main = "ROC of elastic net model")
+```
+
+The ROC graph shows the trade-off the true positive rate and false positive rate by using different threshold to classifify whether the data is fraud/not fraud. For example, we may want to keep the true positive rate high since we don't want to miss the fraud - we can decrease the threshold which classify as positive- in which case the number of false positive also increase as well. The best threshold is the one that achieves the highest sensititity and also the lowest false positive. For the elastic net model,we can achieve a true posititive rate of $80$% while control the false positive rate of $20$%. 
+
+
+
+##Evaluate the model on the test set 
+ 
+Let us evaluate the performance of elastic net model on the test set. 
+
+```{r}
+response_test = BOLT_test$`Fraud Indicator (Yes/No)`
+#Train on the entire training set
+EN_model <- glmnet(x = design_train, y = as.numeric(response_train), alpha = 0.5)
+#Predict on the test set 
+predict(EN_model, type = "response")
+
+
+
+```
+
+```{r test, message=FALSE}
+#Fitting the model
+set.seed(344)
+RF <- randomForest(x = t(train_exprsmat), y = train.es$LnStatus, xtest = t(test_exprsmat), ytest = test.es$LnStatus)
+
+#Store the prediction value
+yhat.RF <- RF$test$predicted
+
+#Calculate the misclassification rate
+pr.errTest<- mean(test.es$LnStatus != yhat.RF)
+pr.errTest
+```
+
+This is comparable to the misclassification rate obtained by the cross-validation(0.368).
+
+```{r,message=FALSE}
+#Calculate the sensitivity and Specificity
+sensitivity <- sum(yhat.RF[test.es$LnStatus == "pos"] == "pos")/ sum(test.es$LnStatus == "pos") 
+specificity <- sum(yhat.RF[test.es$LnStatus == "neg"] == "neg")/ sum(test.es$LnStatus == "neg")
+print(sensitivity); print(specificity)
+```
+

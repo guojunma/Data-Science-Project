@@ -1,0 +1,8 @@
+"0","timeseries <- BOLT %>% "
+"0","  group_by(`Transaction Date`) %>%"
+"0","  summarise(total_transactions = sum(`Transaction Value`))"
+"0",""
+"0","ggplot(timeseries, aes(x = `Transaction Date`, y = total_transactions)) +"
+"0","  geom_point() +  # Add scatter plot points"
+"0","  geom_smooth(method = ""loess"", se = TRUE, color = ""red"") +  # Add a trend line"
+"0","  labs(title = ""Total Transactions Over Time"", y = ""Total Transactions in Dollars"")"
