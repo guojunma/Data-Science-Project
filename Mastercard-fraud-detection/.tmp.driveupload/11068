@@ -1,4 +1,0 @@
-"0","BOLT_subset <- BOLT_train %>% filter(`Fraud Indicator (Yes/No)` == ""Yes"") "
-"2","Error in BOLT_train %>% filter(`Fraud Indicator (Yes/No)` == ""Yes"") : 
-  could not find function ""%>%""
-"

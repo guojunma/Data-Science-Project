@@ -1,3 +1,0 @@
-"0","BOLT %>% "
-"0","  filter(`Fraud Indicator (Yes/No)` == ""Yes"") %>%"
-"0","  summarise(total_value = sum(`Transaction Value`), count = n())"

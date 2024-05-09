@@ -1,4 +1,0 @@
-"0","#Convert the date type from characters to factors"
-"0","BOLT <- BOLT_Data_Set %>% "
-"0","  filter(!(`Cross-border Transaction (Yes/No)` == 0)) %>% "
-"0","  mutate_if(is.character, as.factor)"

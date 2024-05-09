@@ -1,7 +1,0 @@
-"0","timeseries2 <- BOLT %>% "
-"0","  group_by(day(BOLT$`Transaction Date`)) %>%"
-"0","  summarise(total_transactions = sum(`Transaction Value`))"
-"0","  "
-"0",""
-"0","barplot(timeseries2$total_transactions ~ timeseries2$`day(BOLT$\`Transaction Date\`)`, "
-"0","        xlab = ""Day of the month"", ylab = ""Total transaction"", main = ""Daily total transaction"", col = c(""red"",""blue"", ""green""))"

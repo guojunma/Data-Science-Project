@@ -1,3 +1,0 @@
-"0","#Partition the training set to 10 in order perform cross-validation. By setting the argument strat = True, we ensure each split contains the same number of fraud and non-fraud samples."
-"0","set.seed(123)"
-"0","splits <- CMA::GenerateLearningsets(y = response_train, method=""CV"", fold = 5, niter = 5)"
