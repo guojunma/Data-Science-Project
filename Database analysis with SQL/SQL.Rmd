@@ -1,0 +1,228 @@
+---
+title: "Music store database analysis with SQL"
+author: "Gordon Ma"
+date: "2023-01-15"
+output:
+  pdf_document: 
+    keep_md: true
+---
+
+# Introduction
+
+The Chinook database is a [publicly available database](https://github.com/lerocha/chinook-database) that provides a comprehensive overview of a music store's operations. Containing a wealth of information about employees, digital media, and more, this database offers a unique opportunity for data analysis and exploration. In this project, I leveraged the power of SQL comments to delve into the intricacies of the Chinook database, uncovering valuable insights and gaining a deeper understanding of its structure and relationships.
+
+## **Database Structure**
+
+Before diving into the analysis, it's essential to understand the underlying structure of the Chinook database. The following diagram illustrates the database's schema, highlighting the various tables and their relationships:
+
+![Chinook Database structure](001.png)
+
+As shown in the diagram, the Chinook database consists of multiple tables, each containing specific information about the music store's operations. The tables are interconnected, with relationships established through primary and foreign keys. This structure allows for efficient querying and analysis of the data.
+
+There are a total of 11 tables in the Chinook sample database:
+
+-   `Employees` table stores employee data such as employee ID, last name, first name, etc. It also has a field named `ReportsTo` to specify who reports to whom.
+
+-   `Customers` table stores customer data.
+
+-   `Invoices` & `Invoice_items` tables: these two tables store invoice data. The `Invoices` table stores invoice header data and the `Invoice_items` table stores the invoice line items data.
+
+-   `Artists` table stores artists' data. It is a simple table that contains only the artist's ID and name.
+
+-   `Album` table stores data about a list of tracks. Each album belongs to one artist. However, one artist may have multiple albums.
+
+-   `Media_types` table stores media types such as MPEG audio and AAC audio files.
+
+-   `Genres` table stores music types such as rock, jazz, metal, etc.
+
+-   `Tracks` table stores the data of songs. Each track belongs to one album.
+
+-   `Playlists` & `Playlist_track` tables: `Playlists` table stores data about playlists. Each playlist contains a list of tracks. Each track may belong to multiple playlists. The `Playlist_track` table is used to reflect this relationship.
+
+## Problem statements
+
+We can ask problems such as:
+
+-   Which genres of music are the most popular among the customers?
+
+-   Which employers made the most sales? Which are the most loyal customers?
+
+-   Which is the most successful artist?
+
+-   etc.
+
+# Data exploration
+
+To analyze the database, I employed SQL to create a series of queries that extracted and manipulated the data. We first load the required packages in R and connect to the database file.
+
+```{r, warning=FALSE}
+#We first load the required packages in R 
+library(RSQLite)
+#Connect to your SQLite database file and list all the tables
+db_conn <- dbConnect(SQLite(), dbname = "chinook.db")
+dbListTables(db_conn)
+```
+
+Let us look at the `employees` table to find out who works at the company.
+
+```{r, warning=FALSE}
+query <- "SELECT *
+          FROM employees
+          "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+To find the employee who made the most sales, we need to join the tables `employees` and `Invoice` using the "JOIN BY" function. We then group the table by the employees' ID and count the total number of sales of each employee.
+
+```{r, warning=FALSE}
+query <- "SELECT m.FirstName ||' '|| m.LastName AS ManagerName, E.FirstName ||' '|| E.LastName AS EmployeeName, E.Title, SUM(II.Quantity) AS total_sold, SUM(I.TOTAL) AS value
+  FROM employees AS E
+  JOIN Customers AS C ON E.EmployeeId = C.SupportRepId
+  JOIN invoices AS I ON I.CustomerId = C.CustomerId
+  JOIN invoice_items AS II on I.InvoiceId = II.InvoiceId
+  JOIN Employees m ON e.ReportsTo = m.EmployeeID
+  GROUP BY E.EmployeeId
+  ORDER BY total_sold DESC;
+          "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+The sales support agent Jane Peacock made the highest sales with a total of 796 units.
+
+## How many customers are in each country? And how much sales are in each country?
+
+We can use the `COUNT` function to count the distinct customers and `SUM` to sum up the total sales.
+
+```{r, warning=FALSE}
+query <- "SELECT C.COUNTRY, COUNT(DISTINCT C.CUSTOMERID) AS total_user_count, SUM(I.total) AS total_sales
+  FROM customers AS C
+  JOIN invoices AS I
+  GROUP BY 1
+  ORDER BY 3 DESC;
+          "
+result <- dbSendQuery(db_conn, query)
+(users <- dbFetch(result))
+```
+
+The USA has the highest user count of 13 and the highest total sales.
+
+## Which city has the most sales? 
+
+```{r, warning=FALSE}
+query <- "SELECT BILLINGCITY AS City,
+  SUM(TOTAL) AS profits
+  FROM invoices
+  GROUP BY 1
+  ORDER BY 2 DESC;
+          "
+result <- dbSendQuery(db_conn, query)
+(city_sales <- dbFetch(result))
+```
+
+```{r}
+#Visualization of each city's profits 
+barplot(city_sales$profits[1:10], names.arg = city_sales$City[1:10], col = "skyblue", main = "Sales of top 10 city", ylab = "Total in Sales", las = 2)
+```
+
+Prague has the highest number of sales. Let us find out the genres of music people enjoy in this city.
+
+```{r, warning=FALSE}
+query <- "SELECT G.Name, SUM(TOTAL) as profits
+  FROM invoices AS I
+  JOIN invoice_items AS II ON I.InvoiceId = II.InvoiceId
+  JOIN tracks AS T ON T.TrackId = II.TrackId
+  JOIN genres AS G ON T.GenreId = G.GenreId
+  WHERE I.billingCity = 'Prague'
+  GROUP BY G.Name
+  ORDER BY profits DESC;
+          "
+result <- dbSendQuery(db_conn, query)
+(genres_profits <- dbFetch(result) )
+```
+
+```{r}
+#Create a pie chart to visualize the profits of each generes
+pie(genres_profits$profits, genres_profits$Name, radius = 1.0, main = "Profits for each genre")
+```
+
+So Rock music is the most popular in Prague. Let us now find out which artists are known for this genres and are most popular. The following code returns the list of artists who have at least 20 rock music, and order by the total sales.
+
+```{r, warning=FALSE}
+query <- "SELECT AR.Name, COUNT(T.Name) AS Num_of_RockMusic, SUM(I.Total) AS Profits_made
+  FROM tracks AS T
+  JOIN genres AS G ON T.GENREID = G.GENREID
+  JOIN albums AS AL ON AL.ALBUMID = T.ALBUMID
+  JOIN artists AS AR ON AR.ARTISTID = AL.ARTISTID
+  JOIN invoice_items AS II ON II.TrackId = T.TrackId
+  JOIN invoices AS I ON I.InvoiceId = II.InvoiceId
+  WHERE G.Name = 'Rock'
+  GROUP BY AR.Name HAVING Num_of_RockMusic >= 20
+  ORDER BY 3 DESC
+           "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+The band U2 had the highest number of rock music and made the most profits.
+
+## What is the best-selling musical albums by U2?
+
+```{r, warning=FALSE}
+query <- "SELECT AL.title, SUM(Quantity) as total_sold
+          FROM albums AS AL
+          JOIN tracks AS T ON T.AlbumId = AL.AlbumId
+          JOIN invoice_items as II ON II.trackid = T.trackid
+          WHERE artistid IN (
+          SELECT artistid 
+          FROM artists
+          WHERE name = 'U2'
+          )
+          GROUP BY al.title
+          ORDER BY total_sold DESC
+          "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+Which playlist contain U2's tracks?
+
+```{r, warning=FALSE}
+query <- "SELECT P.Name AS name_of_the_playlist, COUNT(DISTINCT T.Name) as total_U2_song
+          FROM playlists as P
+          JOIN playlist_track as PT ON P.PlaylistId = PT.PlaylistId
+          JOIN tracks AS T ON T.trackid = PT.trackid
+          WHERE AlbumId IN (
+            SELECT AlbumId 
+            FROM artists AS AR
+            JOIN albums AS AL ON AR.artistid = AL.artistid
+            WHERE AR.name = 'U2'
+          )
+          GROUP BY P.PlaylistId
+          ORDER BY total_U2_song DESC;
+          "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+```{r, warning=FALSE}
+#Explore the 90's Music playlist
+query <- "SELECT T.*
+          FROM tracks AS T
+          JOIN playlist_track as PT ON T.trackid = PT.trackid
+          JOIN playlists as PL on PL.playlistid = PT.playlistid
+          WHERE PL.name = '90’s Music'
+          LIMIT 10;
+          "
+result <- dbSendQuery(db_conn, query)
+dbFetch(result)
+```
+
+# **Key Findings and Insights**
+
+The analysis of the Chinook database using SQL queries revealed several key findings and insights. For example, I discovered that the music store's sales were mostly in the US, followed by Canada, France, Brazil and Germany. This analysis can be performed at the city level, where we find the city of Prague has the highest sales. This insight has important implications for the store's marketing strategy.
+
+I also perform analysis to discover the most popular types of music and artists. Using this information, I can recommend similar music to users based on their preferences. This can assist the store in developing effective marketing strategies and providing better services to its customers.
+
+Furthermore, the analysis revealed that certain employees were more likely to generate high sales volumes. This finding has important implications for employee training and development, suggesting that targeted training programs could help to boost sales performance.
