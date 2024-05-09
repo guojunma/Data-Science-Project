@@ -108,7 +108,7 @@ result <- dbSendQuery(db_conn, query)
 
 The USA has the highest user count of 13 and the highest total sales.
 
-## Which city has the most sales? 
+## Which city has the most sales?
 
 ```{r, warning=FALSE}
 query <- "SELECT BILLINGCITY AS City,

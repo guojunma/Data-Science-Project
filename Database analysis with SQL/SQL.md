@@ -1,50 +1,64 @@
 ---
-title: "Music store database analysis using SQL"
+title: "Music store database analysis with SQL"
 author: "Gordon Ma"
-date: "2024-01-15"
+date: "2023-01-15"
 output:
   pdf_document: 
     keep_md: true
 ---
 
-## Introduction
+# Introduction
 
-In this project, we use SQL comments to analyze the Chinook database, which is a public database containing the relevant information from a music store. The database can be accessed from the [website](https://github.com/lerocha/chinook-database). The following diagram displays the structure of this database.
+The Chinook database is a [publicly available database](https://github.com/lerocha/chinook-database) that provides a comprehensive overview of a music store's operations. Containing a wealth of information about employees, digital media, and more, this database offers a unique opportunity for data analysis and exploration. In this project, I leveraged the power of SQL comments to delve into the intricacies of the Chinook database, uncovering valuable insights and gaining a deeper understanding of its structure and relationships.
 
-![](001.png)
+## **Database Structure**
 
-There are 11 tables in the Chinook sample database:
+Before diving into the analysis, it's essential to understand the underlying structure of the Chinook database. The following diagram illustrates the database's schema, highlighting the various tables and their relationships:
 
--    `employees` table stores employee data such as employee ID, last name, first name, etc. It also has a field named `ReportsTo` to specify who reports to whom.
+![Chinook Database structure](001.png)
 
--    `customers` table stores customer data.
+As shown in the diagram, the Chinook database consists of multiple tables, each containing specific information about the music store's operations. The tables are interconnected, with relationships established through primary and foreign keys. This structure allows for efficient querying and analysis of the data.
 
--    `invoices` & `invoice_items` tables: these two tables store invoice data. The `invoices` table stores invoice header data and the `invoice_items` table stores the invoice line items data.
+There are a total of 11 tables in the Chinook sample database:
 
--   `artists'` table stores artists' data. It is a simple table that contains only the artist's ID and name.
+-   `Employees` table stores employee data such as employee ID, last name, first name, etc. It also has a field named `ReportsTo` to specify who reports to whom.
 
--    `aalbum`table stores data about a list of tracks. Each album belongs to one artist. However, one artist may have multiple albums.
+-   `Customers` table stores customer data.
 
--    `media_types` table stores media types such as MPEG audio and AAC audio files.
+-   `Invoices` & `Invoice_items` tables: these two tables store invoice data. The `Invoices` table stores invoice header data and the `Invoice_items` table stores the invoice line items data.
 
--    `genres` table stores music types such as rock, jazz, metal, etc.
+-   `Artists` table stores artists' data. It is a simple table that contains only the artist's ID and name.
 
--    `tracks` table stores the data of songs. Each track belongs to one album.
+-   `Album` table stores data about a list of tracks. Each album belongs to one artist. However, one artist may have multiple albums.
 
--    `playlists` & `playlist_track` tables: `playlists` table store data about playlists. Each playlist contains a list of tracks. Each track may belong to multiple playlists. The `playlist_track` table is used to reflect this relationship.
+-   `Media_types` table stores media types such as MPEG audio and AAC audio files.
+
+-   `Genres` table stores music types such as rock, jazz, metal, etc.
+
+-   `Tracks` table stores the data of songs. Each track belongs to one album.
+
+-   `Playlists` & `Playlist_track` tables: `Playlists` table stores data about playlists. Each playlist contains a list of tracks. Each track may belong to multiple playlists. The `Playlist_track` table is used to reflect this relationship.
+
+## Problem statements
+
+We can ask problems such as:
+
+-   Which genres of music are the most popular among the customers?
+
+-   Which employers made the most sales? Which are the most loyal customers?
+
+-   Which is the most successful artist?
+
+-   etc.
+
+# Data exploration
+
+To analyze the database, I employed SQL to create a series of queries that extracted and manipulated the data. We first load the required packages in R and connect to the database file.
 
 
 ```r
 #We first load the required packages in R 
 library(RSQLite)
-```
-
-```
-## Warning: package 'RSQLite' was built under R version 4.2.3
-```
-
-
-```r
 #Connect to your SQLite database file and list all the tables
 db_conn <- dbConnect(SQLite(), dbname = "chinook.db")
 dbListTables(db_conn)
@@ -57,206 +71,129 @@ dbListTables(db_conn)
 ## [13] "tracks"
 ```
 
+Let us look at the `employees` table to find out who works at the company.
+
 
 ```r
-#Query to read one of the table
-query <- "SELECT * FROM playlists;"
+query <- "SELECT *
+          FROM employees
+          "
 result <- dbSendQuery(db_conn, query)
 dbFetch(result)
 ```
 
 ```
-##    PlaylistId                       Name
-## 1           1                      Music
-## 2           2                     Movies
-## 3           3                   TV Shows
-## 4           4                 Audiobooks
-## 5           5                 90’s Music
-## 6           6                 Audiobooks
-## 7           7                     Movies
-## 8           8                      Music
-## 9           9               Music Videos
-## 10         10                   TV Shows
-## 11         11            Brazilian Music
-## 12         12                  Classical
-## 13         13  Classical 101 - Deep Cuts
-## 14         14 Classical 101 - Next Steps
-## 15         15 Classical 101 - The Basics
-## 16         16                     Grunge
-## 17         17        Heavy Metal Classic
-## 18         18                On-The-Go 1
+##   EmployeeId LastName FirstName               Title ReportsTo
+## 1          1    Adams    Andrew     General Manager        NA
+## 2          2  Edwards     Nancy       Sales Manager         1
+## 3          3  Peacock      Jane Sales Support Agent         2
+## 4          4     Park  Margaret Sales Support Agent         2
+## 5          5  Johnson     Steve Sales Support Agent         2
+## 6          6 Mitchell   Michael          IT Manager         1
+## 7          7     King    Robert            IT Staff         6
+## 8          8 Callahan     Laura            IT Staff         6
+##             BirthDate            HireDate                     Address
+## 1 1962-02-18 00:00:00 2002-08-14 00:00:00         11120 Jasper Ave NW
+## 2 1958-12-08 00:00:00 2002-05-01 00:00:00                825 8 Ave SW
+## 3 1973-08-29 00:00:00 2002-04-01 00:00:00               1111 6 Ave SW
+## 4 1947-09-19 00:00:00 2003-05-03 00:00:00            683 10 Street SW
+## 5 1965-03-03 00:00:00 2003-10-17 00:00:00                7727B 41 Ave
+## 6 1973-07-01 00:00:00 2003-10-17 00:00:00        5827 Bowness Road NW
+## 7 1970-05-29 00:00:00 2004-01-02 00:00:00 590 Columbia Boulevard West
+## 8 1968-01-09 00:00:00 2004-03-04 00:00:00                 923 7 ST NW
+##         City State Country PostalCode             Phone               Fax
+## 1   Edmonton    AB  Canada    T5K 2N1 +1 (780) 428-9482 +1 (780) 428-3457
+## 2    Calgary    AB  Canada    T2P 2T3 +1 (403) 262-3443 +1 (403) 262-3322
+## 3    Calgary    AB  Canada    T2P 5M5 +1 (403) 262-3443 +1 (403) 262-6712
+## 4    Calgary    AB  Canada    T2P 5G3 +1 (403) 263-4423 +1 (403) 263-4289
+## 5    Calgary    AB  Canada    T3B 1Y7  1 (780) 836-9987  1 (780) 836-9543
+## 6    Calgary    AB  Canada    T3B 0C5 +1 (403) 246-9887 +1 (403) 246-9899
+## 7 Lethbridge    AB  Canada    T1K 5N8 +1 (403) 456-9986 +1 (403) 456-8485
+## 8 Lethbridge    AB  Canada    T1H 1Y8 +1 (403) 467-3351 +1 (403) 467-8772
+##                      Email
+## 1   andrew@chinookcorp.com
+## 2    nancy@chinookcorp.com
+## 3     jane@chinookcorp.com
+## 4 margaret@chinookcorp.com
+## 5    steve@chinookcorp.com
+## 6  michael@chinookcorp.com
+## 7   robert@chinookcorp.com
+## 8    laura@chinookcorp.com
 ```
 
-## As a music store manager, we would like to know which employees sold the most and made the highest profits.
+To find the employee who made the most sales, we need to join the tables `employees` and `Invoice` using the "JOIN BY" function. We then group the table by the employees' ID and count the total number of sales of each employee.
 
 
 ```r
-query <- "SELECT m.FirstName ||' '|| m.LastName AS ManagerName, E.FirstName ||' '|| E.LastName AS EmployeeName, E.Title, SUM(II.Quantity) AS total_sold, SUM(I.TOTAL) AS profits
+query <- "SELECT m.FirstName ||' '|| m.LastName AS ManagerName, E.FirstName ||' '|| E.LastName AS EmployeeName, E.Title, SUM(II.Quantity) AS total_sold, SUM(I.TOTAL) AS value
   FROM employees AS E
   JOIN Customers AS C ON E.EmployeeId = C.SupportRepId
   JOIN invoices AS I ON I.CustomerId = C.CustomerId
   JOIN invoice_items AS II on I.InvoiceId = II.InvoiceId
   JOIN Employees m ON e.ReportsTo = m.EmployeeID
   GROUP BY E.EmployeeId
-  ORDER BY profits DESC;
+  ORDER BY total_sold DESC;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 dbFetch(result)
 ```
 
 ```
-##     ManagerName  EmployeeName               Title total_sold profits
+##     ManagerName  EmployeeName               Title total_sold   value
 ## 1 Nancy Edwards  Jane Peacock Sales Support Agent        796 7427.06
 ## 2 Nancy Edwards Margaret Park Sales Support Agent        760 6931.40
 ## 3 Nancy Edwards Steve Johnson Sales Support Agent        684 6490.16
 ```
 
-## How many users per country? And how much did users spend on each country?
+The sales support agent Jane Peacock made the highest sales with a total of 796 units.
+
+## How many customers are in each country? And how much sales are in each country?
+
+We can use the `COUNT` function to count the distinct customers and `SUM` to sum up the total sales.
 
 
 ```r
-query <- "SELECT C.COUNTRY, COUNT(DISTINCT C.CUSTOMERID) AS total_user_count, SUM(I.total) AS total_profits
+query <- "SELECT C.COUNTRY, COUNT(DISTINCT C.CUSTOMERID) AS total_user_count, SUM(I.total) AS total_sales
   FROM customers AS C
   JOIN invoices AS I
   GROUP BY 1
   ORDER BY 3 DESC;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 (users <- dbFetch(result))
 ```
 
 ```
-##           Country total_user_count total_profits
-## 1             USA               13       30271.8
-## 2          Canada                8       18628.8
-## 3          France                5       11643.0
-## 4          Brazil                5       11643.0
-## 5         Germany                4        9314.4
-## 6  United Kingdom                3        6985.8
-## 7        Portugal                2        4657.2
-## 8           India                2        4657.2
-## 9  Czech Republic                2        4657.2
-## 10         Sweden                1        2328.6
-## 11          Spain                1        2328.6
-## 12         Poland                1        2328.6
-## 13         Norway                1        2328.6
-## 14    Netherlands                1        2328.6
-## 15          Italy                1        2328.6
-## 16        Ireland                1        2328.6
-## 17        Hungary                1        2328.6
-## 18        Finland                1        2328.6
-## 19        Denmark                1        2328.6
-## 20          Chile                1        2328.6
-## 21        Belgium                1        2328.6
-## 22        Austria                1        2328.6
-## 23      Australia                1        2328.6
-## 24      Argentina                1        2328.6
+##           Country total_user_count total_sales
+## 1             USA               13     30271.8
+## 2          Canada                8     18628.8
+## 3          France                5     11643.0
+## 4          Brazil                5     11643.0
+## 5         Germany                4      9314.4
+## 6  United Kingdom                3      6985.8
+## 7        Portugal                2      4657.2
+## 8           India                2      4657.2
+## 9  Czech Republic                2      4657.2
+## 10         Sweden                1      2328.6
+## 11          Spain                1      2328.6
+## 12         Poland                1      2328.6
+## 13         Norway                1      2328.6
+## 14    Netherlands                1      2328.6
+## 15          Italy                1      2328.6
+## 16        Ireland                1      2328.6
+## 17        Hungary                1      2328.6
+## 18        Finland                1      2328.6
+## 19        Denmark                1      2328.6
+## 20          Chile                1      2328.6
+## 21        Belgium                1      2328.6
+## 22        Austria                1      2328.6
+## 23      Australia                1      2328.6
+## 24      Argentina                1      2328.6
 ```
 
-## Returns the list of customers ordered by name, whose sales representatives are in Canada.
+The USA has the highest user count of 13 and the highest total sales.
 
-
-```r
-query <- "SELECT customerid,
-       firstname,
-       lastname
-  FROM customers
- WHERE supportrepid IN (
-           SELECT employeeid
-             FROM employees
-            WHERE country = 'Canada'
-            )
-            ORDER BY firstname, lastname; 
-          "
-result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
-dbFetch(result)
-```
-
-```
-##    CustomerId FirstName     LastName
-## 1          32     Aaron     Mitchell
-## 2          11 Alexandre        Rocha
-## 3           7    Astrid       Gruber
-## 4           4     Bjørn       Hansen
-## 5          39   Camille      Bernard
-## 6           8      Daan      Peeters
-## 7          20       Dan       Miller
-## 8          56     Diego    Gutiérrez
-## 9          40 Dominique     Lefebvre
-## 10         10   Eduardo      Martins
-## 11         30    Edward      Francis
-## 12         33     Ellie     Sullivan
-## 13         52      Emma        Jones
-## 14         50   Enrique        Muñoz
-## 15         13  Fernanda        Ramos
-## 16         16     Frank       Harris
-## 17         24     Frank      Ralston
-## 18          5 František  Wichterlová
-## 19          3  François     Tremblay
-## 20         37      Fynn   Zimmermann
-## 21         36    Hannah    Schneider
-## 22         22   Heather      Leacock
-## 23          6    Helena         Holý
-## 24         46      Hugh     O'Reilly
-## 25         43  Isabelle      Mercier
-## 26         17      Jack        Smith
-## 27         15  Jennifer     Peterson
-## 28         51    Joakim    Johansson
-## 29         48  Johannes Van der Berg
-## 30         23      John       Gordon
-## 31         34      João    Fernandes
-## 32         28     Julia      Barnett
-## 33          9      Kara      Nielsen
-## 34         21     Kathy        Chase
-## 35         45  Ladislav       Kovács
-## 36          2    Leonie       Köhler
-## 37         47     Lucas      Mancini
-## 38         57      Luis        Rojas
-## 39          1      Luís    Gonçalves
-## 40         35  Madalena      Sampaio
-## 41         58     Manoj       Pareek
-## 42         41      Marc       Dubois
-## 43         14      Mark      Philips
-## 44         55      Mark       Taylor
-## 45         31    Martha         Silk
-## 46         18  Michelle       Brooks
-## 47         38    Niklas     Schröder
-## 48         27   Patrick         Gray
-## 49         53      Phil       Hughes
-## 50         59      Puja   Srivastava
-## 51         26   Richard   Cunningham
-## 52         29    Robert        Brown
-## 53         12   Roberto      Almeida
-## 54         49 Stanisław       Wójcik
-## 55         54     Steve       Murray
-## 56         44     Terhi   Hämäläinen
-## 57         19       Tim        Goyer
-## 58         25    Victor      Stevens
-## 59         42     Wyatt       Girard
-```
-
-## Which city has the best customers? We would like to throw a promotional Music Festival in the city that made the most money.
+## Which city has the most sales?
 
 
 ```r
@@ -267,13 +204,6 @@ query <- "SELECT BILLINGCITY AS City,
   ORDER BY 2 DESC;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 (city_sales <- dbFetch(result))
 ```
 
@@ -340,9 +270,9 @@ result <- dbSendQuery(db_conn, query)
 barplot(city_sales$profits[1:10], names.arg = city_sales$City[1:10], col = "skyblue", main = "Sales of top 10 city", ylab = "Total in Sales", las = 2)
 ```
 
-![](SQL_files/figure-latex/unnamed-chunk-8-1.pdf)<!-- --> 
+![](SQL_files/figure-latex/unnamed-chunk-6-1.pdf)<!-- --> 
 
-## We decide to host a Music Festival in Prague. We would like to find out what genres of music do people like.
+Prague has the highest number of sales. Let us find out the genres of music people enjoy in this city.
 
 
 ```r
@@ -356,13 +286,6 @@ query <- "SELECT G.Name, SUM(TOTAL) as profits
   ORDER BY profits DESC;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 (genres_profits <- dbFetch(result) )
 ```
 
@@ -388,9 +311,9 @@ result <- dbSendQuery(db_conn, query)
 pie(genres_profits$profits, genres_profits$Name, radius = 1.0, main = "Profits for each genre")
 ```
 
-![](SQL_files/figure-latex/unnamed-chunk-10-1.pdf)<!-- --> 
+![](SQL_files/figure-latex/unnamed-chunk-8-1.pdf)<!-- --> 
 
-## So Rock music is the most popular in Prague. We would like to invite artists who is known for Rock music. Return a table of rock artists with at least 20 tracks of rock music, and ordered them by total profits made.
+So Rock music is the most popular in Prague. Let us now find out which artists are known for this genres and are most popular. The following code returns the list of artists who have at least 20 rock music, and order by the total sales.
 
 
 ```r
@@ -403,16 +326,9 @@ query <- "SELECT AR.Name, COUNT(T.Name) AS Num_of_RockMusic, SUM(I.Total) AS Pro
   JOIN invoices AS I ON I.InvoiceId = II.InvoiceId
   WHERE G.Name = 'Rock'
   GROUP BY AR.Name HAVING Num_of_RockMusic >= 20
-  ORDER BY Profits_made DESC
+  ORDER BY 3 DESC
            "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 dbFetch(result)
 ```
 
@@ -430,48 +346,9 @@ dbFetch(result)
 ## 10                Guns N' Roses               26       142.56
 ```
 
-## We will invite the band U2 since they had the highest number of rock music and made the most profits. Let us find out which are their biggest fan and also invite them.
+The band U2 had the highest number of rock music and made the most profits.
 
-
-```r
-query <- "SELECT C.firstname, C.lastname,SUM(II.Quantity * II.UnitPrice) AS money_spend
-  FROM customers AS C
-  JOIN invoices AS I ON C.CustomerId = I.CustomerId
-  JOIN invoice_items AS II ON I.InvoiceId = II.InvoiceId
-  JOIN tracks AS T ON T.TrackId = II.TrackId
-  JOIN albums AS AL ON AL.AlbumId = T.AlbumId
-  JOIN artists AS AR ON AR.artistid = AL.artistid
-  WHERE AR.Name = 'U2'
-  GROUP BY C.customerId
-  ORDER BY money_spend DESC
-  LIMIT 10;
-           "
-result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
-dbFetch(result)
-```
-
-```
-##    FirstName    LastName money_spend
-## 1     Astrid      Gruber        8.91
-## 2   Madalena     Sampaio        8.91
-## 3    Richard  Cunningham        7.92
-## 4    Eduardo     Martins        5.94
-## 5     Robert       Brown        5.94
-## 6       Hugh    O'Reilly        5.94
-## 7  Stanisław      Wójcik        5.94
-## 8     Helena        Holý        4.95
-## 9       Mark      Taylor        4.95
-## 10 František Wichterlová        3.96
-```
-
-## Let us find out which album of U2 sold the most?
+## What is the best-selling musical albums by U2?
 
 
 ```r
@@ -488,13 +365,6 @@ query <- "SELECT AL.title, SUM(Quantity) as total_sold
           ORDER BY total_sold DESC
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 dbFetch(result)
 ```
 
@@ -512,7 +382,7 @@ dbFetch(result)
 ## 10                                                     Achtung Baby          6
 ```
 
-## To find out what are other songs do U2's fans like to listen to, we want to find which playlist contain U2's tracks?
+Which playlist contain U2's tracks?
 
 
 ```r
@@ -530,13 +400,6 @@ query <- "SELECT P.Name AS name_of_the_playlist, COUNT(DISTINCT T.Name) as total
           ORDER BY total_U2_song DESC;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 dbFetch(result)
 ```
 
@@ -558,13 +421,6 @@ query <- "SELECT T.*
           LIMIT 10;
           "
 result <- dbSendQuery(db_conn, query)
-```
-
-```
-## Warning: Closing open result set, pending rows
-```
-
-```r
 dbFetch(result)
 ```
 
@@ -603,3 +459,11 @@ dbFetch(result)
 ## 9        330736 10869391      0.99
 ## 10       309263 10056995      0.99
 ```
+
+# **Key Findings and Insights**
+
+The analysis of the Chinook database using SQL queries revealed several key findings and insights. For example, I discovered that the music store's sales were mostly in the US, followed by Canada, France, Brazil and Germany. This analysis can be performed at the city level, where we find the city of Prague has the highest sales. This insight has important implications for the store's marketing strategy.
+
+I also perform analysis to discover the most popular types of music and artists. Using this information, I can recommend similar music to users based on their preferences. This can assist the store in developing effective marketing strategies and providing better services to its customers.
+
+Furthermore, the analysis revealed that certain employees were more likely to generate high sales volumes. This finding has important implications for employee training and development, suggesting that targeted training programs could help to boost sales performance.
