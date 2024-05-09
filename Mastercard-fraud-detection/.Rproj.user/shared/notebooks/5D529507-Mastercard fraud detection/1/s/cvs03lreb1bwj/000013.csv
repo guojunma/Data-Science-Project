@@ -1,0 +1,5 @@
+"0","BOLT %>% "
+"0","  group_by(`Merchant Location`) %>%"
+"0","  summarise(num_of_transaction = n(), num_of_fraud = sum(`Fraud Indicator (Yes/No)` == ""Yes"")) %>% "
+"0","  mutate(proportion_of_fraud = num_of_fraud / num_of_transaction) %>%"
+"0","  arrange(desc(num_of_fraud))"

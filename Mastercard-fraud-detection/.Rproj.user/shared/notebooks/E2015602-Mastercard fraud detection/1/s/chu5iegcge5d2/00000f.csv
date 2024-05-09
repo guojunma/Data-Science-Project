@@ -1,0 +1,4 @@
+"0","pr <- list( pr_TBB, pr_RF, pr_EN, pr_FNN, pr_LDA, pr_SVM)"
+"0","comparison <- compare(pr, plot = TRUE, measure = ""auc"")"
+"2","Error in problist[[i]][, 2] : subscript out of bounds
+"

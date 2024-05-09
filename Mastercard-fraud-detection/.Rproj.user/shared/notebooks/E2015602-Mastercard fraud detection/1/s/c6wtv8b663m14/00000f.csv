@@ -1,0 +1,2 @@
+"0","pr <- list(pr_KNN, pr_TBB, pr_RF, pr_EN, pr_FNN, pr_LDA, pr_SVM)"
+"0","comparison <- compare(pr, plot = TRUE, measure = c(""misclassification"", ""sensitivity"", ""specificity""))"
