@@ -1,5 +1,0 @@
-"0","BOLT %>% "
-"0","  filter(`Merchant Location` == ""USA"") %>% "
-"0","  group_by(`Merchant Category Code (MCC)`) %>%"
-"0","  summarise(number_of_transaction = n(), total_transaction_value = sum(`Transaction Value`)) %>% "
-"0","  arrange(desc(total_transaction_value)) "

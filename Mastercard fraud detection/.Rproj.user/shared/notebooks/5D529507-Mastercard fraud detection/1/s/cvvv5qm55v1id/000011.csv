@@ -1,6 +1,0 @@
-"0",""
-"0","ggplot(spend_location, aes(x = """", y = `total_transaction_value`, fill = `Merchant Location`)) +"
-"0","  geom_bar(stat = ""identity"", width = 1, color = ""white"") +"
-"0","  coord_polar(""y"", start = 0) +"
-"0","  theme_void() + "
-"0","  labs(title = ""Total Transaction value "", fill = ""Countries"") "

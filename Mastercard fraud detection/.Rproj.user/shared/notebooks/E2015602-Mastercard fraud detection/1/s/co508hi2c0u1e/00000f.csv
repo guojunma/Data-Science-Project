@@ -1,8 +1,0 @@
-"0","response_test = BOLT_test$`Fraud Indicator (Yes/No)`"
-"0","#Train on the entire training set"
-"0","EN_model <- glmnet(x = design_train, y = as.numeric(response_train), alpha = 0.5)"
-"0","#Predict on the test set "
-"0","predict(EN_model, type = ""response"")"
-"2","Error in predict.glmnet(EN_model, type = ""response"") : 
-  You need to supply a value for 'newx'
-"
